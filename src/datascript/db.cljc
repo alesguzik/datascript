@@ -270,9 +270,33 @@
    (defmacro case-tree [qs vs]
      (-case-tree qs vs)))
 
+#?(:cljs
+   (defn compare-fn
+     "Comparator. Returns a negative number, zero, or a positive number
+     when x is logically 'less than', 'equal to', or 'greater than'
+     y. Uses IComparable if available and google.array.defaultCompare for objects
+    of the same type and special-cases nil to be less than any other object."
+     [x y]
+     (cond
+      (identical? x y) 0
+
+      (nil? x) -1
+
+      (nil? y) 1
+
+      (identical? (type x) (type y))
+      (if (satisfies? cljs.core.IComparable x)
+        (-compare ^not-native x y)
+        (garray/defaultCompare x y))
+
+      :else
+      (throw (js/Error. "compare on non-nil objects of different types"))))
+   :clj
+   (def compare-fn compare))
+
 (defn- cmp [o1 o2]
   (if (and o1 o2)
-    (compare o1 o2)
+    (compare-fn o1 o2)
     0))
 
 (defn- cmp-num [n1 n2]
@@ -282,7 +306,7 @@
 
 (defn cmp-val [o1 o2]
   (if (and (some? o1) (some? o2))
-    (compare o1 o2)
+    (compare-fn o1 o2)
     0))
 
 ;; Slower cmp-* fns allows for datom fields to be nil.
